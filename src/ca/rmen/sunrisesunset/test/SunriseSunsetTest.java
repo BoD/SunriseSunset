@@ -20,6 +20,7 @@ package ca.rmen.sunrisesunset.test;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
@@ -46,6 +47,19 @@ public class SunriseSunsetTest {
 			"yyyyMMdd");
 
 	/**
+	 * Not a unit test, but helpful for troubleshooting and adding new unit
+	 * tests. This method logs the list of Java timezone ids.
+	 */
+	@Test
+	public void logTimezoneIds() {
+		String[] timezoneIds = TimeZone.getAvailableIDs();
+		Arrays.sort(timezoneIds);
+		for (String timezoneId : timezoneIds)
+			System.out.println(timezoneId);
+
+	}
+
+	/**
 	 * Test conversion between Gregorian and Julian dates (both ways).
 	 */
 	@Test
@@ -55,7 +69,26 @@ public class SunriseSunsetTest {
 		testDateConversion("19780427 12:00:42 CET", 2443625.9588194);
 		testDateConversion("19010101 23:59:59 UTC", 2415386.4999884);
 		testDateConversion("19010101 09:00:00 UTC", 2415385.875);
-		testDateConversion("19010101 00:00:00 AKST", 2415385.875);
+		testDateConversion("19190101 00:00:00 AKST", 2421959.916667);
+		// After WWII, AKST was officially (not in practice) two hours slower
+		// than PST (GMT-10). In practice Alaska had 4 time zones:
+		// Bering Time, Alaska Time, Yukon Time, and Pacific Time.
+		// http://www.alaskahistoricalsociety.org/index.cfm/discover-alaska/Glimpses-of-the-Past/98
+		testDateConversion("19460101 00:00:00 AKST", 2431821.916667);
+		testDateConversion("19670101 00:00:00 AKST", 2439491.916667);
+		testDateConversion("19680101 00:00:00 AKST", 2439856.916667);
+		// After April 1968, Alaska had the four official time zones
+		// with AKST being UTC-10.
+		testDateConversion("19690101 00:00:00 AKST", 2440222.916667);
+		testDateConversion("19830101 00:00:00 AKST", 2445335.916667);
+
+		// In October 1983, Alaska aligned with Yukon time (UTC-9)
+		testDateConversion("19840101 00:00:00 AKST", 2445700.875);
+		testDateConversion("19850101 00:00:00 AKST", 2446066.875);
+		testDateConversion("19900101 00:00:00 AKST", 2447892.875);
+		testDateConversion("20000101 00:00:00 AKST", 2451544.875);
+		testDateConversion("20130101 00:00:00 AKST", 2456293.875);
+
 		testDateConversion("19010101 00:00:00 UTC", 2415385.5);
 		testDateConversion("19001231 23:59:59 UTC", 2415385.4999884);
 		testDateConversion("19000701 00:00:00 UTC", 2415201.5);
@@ -172,6 +205,20 @@ public class SunriseSunsetTest {
 				"20:29");
 		testSunriseSunset("Pacific/Honolulu", "20150827", 21.3069, -157.8583,
 				"06:13", "18:53");
+		testSunriseSunset("America/Argentina/Buenos_Aires", "20130501",
+				-34.6092, -58.3732, "07:29", "18:12");
+		testSunriseSunset("America/Argentina/Buenos_Aires", "20131019",
+				-34.6092, -58.3732, "06:07", "19:11");
+
+		// The following test will not work on Java versions older than 2009.
+		testSunriseSunset("America/Argentina/Buenos_Aires", "20130126",
+				-34.6092, -58.3732, "06:07", "20:04");
+		// The following test will not work on Java versions older than 2009.
+		testSunriseSunset("America/Argentina/Buenos_Aires", "20131020",
+				-34.6092, -58.3732, "06:05", "19:11");
+		// The following test will not work on Java versions older than 2009.
+		testSunriseSunset("America/Argentina/Buenos_Aires", "20131031",
+				-34.6092, -58.3732, "05:53", "19:21");
 	}
 
 	/**
@@ -278,24 +325,118 @@ public class SunriseSunsetTest {
 	}
 
 	/**
-	 * Log the day/night status of some locations. This method only logs the
-	 * day/night status, it does not do any validation.
+	 * Tests the {@link SunriseSunset#isDay(double, double)} method for a few
+	 * locations. The value of isDay will depend on when the test is executed
+	 * (time of day and time of year). We approximately validate the result: If
+	 * the method returns true (day), we compare the current time to the
+	 * sunrise/sunset of the longest day. If the method returns false (night),
+	 * we compare the current time to the sunrise/sunset of the longest night.
 	 */
 	@Test
-	public void testIsNight() {
-		logDayOrNight("Honolulu", 21.3069, -157.8583);
-		logDayOrNight("Los Angeles", 34.0522, -118.2437);
-		logDayOrNight("Chicago", 41.8781, -87.6298);
-		logDayOrNight("Dublin", 53.3441, -6.2675);
-		logDayOrNight("Paris", 48.8567, 2.351);
-		logDayOrNight("Tokyo", 35.6938, 139.7036);
-		logDayOrNight("Sydney", -33.86, 151.2111);
+	public void testDayOrNight() {
+		testDayOrNight("Honolulu", "Pacific/Honolulu", 21.3069, -157.8583,
+				"5:48", "7:13", "17:47", "19:19");
+		testDayOrNight("Los Angeles", "PST", 34.0522, -118.2437, "5:40",
+				"7:00", "16:42", "20:09");
+		testDayOrNight("Chicago", "CST", 41.8781, -87.6298, "5:14", "7:19",
+				"16:19", "20:31");
+		testDayOrNight("Buenos Aires", "America/Argentina/Buenos_Aires",
+				-34.6092, -58.3732, "5:32", "8:02", "17:48", "20:11");
+		testDayOrNight("Dublin", "Europe/Dublin", 53.3441, -6.2675, "4:55",
+				"8:42", "16:05", "21:58");
+		testDayOrNight("Paris", "CET", 48.8567, 2.351, "5:45", "8:45", "16:53",
+				"21:59");
+		testDayOrNight("Tokyo", "Japan", 35.6938, 139.7036, "4:24", "6:52",
+				"16:27", "19:02");
+		testDayOrNight("Sydney", "Australia/Sydney", -33.86, 151.2111, "5:36",
+				"7:02", "16:52", "20:10");
 
 	}
 
-	private void logDayOrNight(String name, double latitude, double longitude) {
-		boolean isDay = SunriseSunset.isDay(latitude, longitude);
+	/**
+	 * Test the day/night status of a location. Since the day/night status of a
+	 * location depends on when the unit test is executed, we can only do an
+	 * approximate validation. For a given location, we know the earliest and
+	 * latest possible times for sunrise and sunset. If the
+	 * {@link SunriseSunset#isDay(double, double)} method returns true, we
+	 * compare "now" with the longest day (earliest sunrise/latest sunset) at
+	 * that location and make sure that "now" falls into this range. If isDay
+	 * returns false, we compare "now" with the longest night (latest
+	 * sunrise/earliest sunset) at that location and make sure that "now" is
+	 * either before that sunrise or after that sunset.
+	 * 
+	 * @param name
+	 *            the name of the location. Used for logging and shown in the
+	 *            error if an assertion fails.
+	 * @param timeZoneString
+	 *            a valid Java timezone
+	 * @param inputLatitude
+	 *            the latitude of a given location
+	 * @param inputLongitude
+	 *            the longitude of a given location (West is negative).
+	 * @param earliestSunriseString
+	 *            a time in the format HH:mm for the earliest time sunrise
+	 *            occurs throughout the year, at this location.
+	 * @param latestSunriseString
+	 *            a time in the format HH:mm for the latest time sunrise occurs
+	 *            throughout the year, at this location.
+	 * @param earliestSunsetString
+	 *            a time in the format HH:mm for the latest time sunset occurs
+	 *            throughout the year, at this location.
+	 * @param latestSunsetString
+	 *            a time in the format HH:mm for the latest time sunset occurs
+	 *            throughout the year, at this location.
+	 */
+	private void testDayOrNight(String name, String timeZoneString,
+			double inputLatitude, double inputLongitude,
+			String earliestSunriseString, String latestSunriseString,
+			String earliestSunsetString, String latestSunsetString) {
+		boolean isDay = SunriseSunset.isDay(inputLatitude, inputLongitude);
 		System.out.println(name + ": Currently " + (isDay ? "day" : "night"));
+
+		Calendar now = Calendar.getInstance(TimeZone
+				.getTimeZone(timeZoneString));
+		Calendar earliestSunrise = getCalendarAtTime(now, earliestSunriseString);
+		Calendar latestSunrise = getCalendarAtTime(now, latestSunriseString);
+		Calendar earliestSunset = getCalendarAtTime(now, earliestSunsetString);
+		Calendar latestSunset = getCalendarAtTime(now, latestSunsetString);
+		String nowString = format(DATE_FORMAT_MINUTES, now);
+		if (isDay) {
+			Assert.assertTrue("In " + name + ", " + nowString
+					+ " is before sunrise at " + earliestSunriseString
+					+ ", but we think it's day.", now.after(earliestSunrise));
+			Assert.assertTrue("In " + name + ", " + nowString
+					+ " is after sunset at " + latestSunsetString
+					+ ", but we think it's day.", now.before(latestSunset));
+		} else {
+			Assert.assertTrue("In " + name + ", " + nowString
+					+ " is after sunrise at " + latestSunriseString
+					+ " or before sunset at " + earliestSunsetString
+					+ ", but we think it's night.", now.before(latestSunrise)
+					|| now.after(earliestSunset));
+		}
+	}
+
+	/**
+	 * @param day
+	 *            a date in any timezone.
+	 * @param timeString
+	 *            a time in format HH:mm
+	 * @return a new Calendar object with the same day as the given day, and the
+	 *         hours and minutes in timeString. Seconds and milliseconds are set
+	 *         to zero.
+	 */
+	private Calendar getCalendarAtTime(Calendar day, String timeString) {
+
+		String[] tokens = timeString.split(":");
+		int hour = Integer.parseInt(tokens[0]);
+		int min = Integer.parseInt(tokens[1]);
+		Calendar clone = (Calendar) day.clone();
+		clone.set(Calendar.HOUR_OF_DAY, hour);
+		clone.set(Calendar.MINUTE, min);
+		clone.set(Calendar.SECOND, 0);
+		clone.set(Calendar.MILLISECOND, 0);
+		return clone;
 	}
 
 }
