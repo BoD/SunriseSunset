@@ -282,5 +282,9 @@ public class SunriseSunset {
 		Calendar now = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
 		return now.before(sunrise) || now.after(sunset);
 	}
+	
+	public static void main(String[] av) {
+	    System.out.println(isNight(Double.valueOf(av[0]), Double.valueOf(av[1]))?"night":"day");
+	}
 
 }
